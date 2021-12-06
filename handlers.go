@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -26,8 +27,11 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
+// Login function generates the jwt token while login, if username and password doesn't match it will thrwow 401 unauthorized error
 func Login(w http.ResponseWriter, r *http.Request) {
 	var credentials Credentials
+
+	// Decoding the credentials struct
 	err := json.NewDecoder(r.Body).Decode(&credentials)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -43,6 +47,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	expirationTime := time.Now().Add(time.Minute * 5)
 
+	//  Claims is the payload of jwt token
 	claims := &Claims{
 		Username: credentials.Username,
 		StandardClaims: jwt.StandardClaims{
@@ -50,14 +55,18 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// HS256 is an algorithm of jwt token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
+	log.Println("u", token)
 
+	// We will get the token string here
+	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	// We have to set cokkie with our tokenString and expiration date
 	http.SetCookie(w,
 		&http.Cookie{
 			Name:    "token",
@@ -67,8 +76,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func Home(w http.ResponseWriter, r *http.Request) {
+// User will have access to the Dashboard function only if token is valid
+func Dashboard(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("token")
+	log.Println("cookie", cookie)
 	if err != nil {
 		if err == http.ErrNoCookie {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -101,7 +112,7 @@ func Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(fmt.Sprintf("Hello! %s", claims.Username)))
+	w.Write([]byte(fmt.Sprintf("Hello! %s welcome to dashbord", claims.Username)))
 
 }
 
